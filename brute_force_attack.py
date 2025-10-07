@@ -34,8 +34,6 @@ def ejecutar_ataque(nombre_usuario: str):
             "usuario": nombre_usuario,
             "contrasena": contrasena_supuesta
         }
-        
-        # Esta línea fallará (sin manejo de error) si el servidor no está corriendo
         respuesta = requests.post(URL_API, json=cuerpo)
         
         if respuesta.status_code == 200:

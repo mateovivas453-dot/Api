@@ -3,7 +3,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-# Esquemas de datos
 class EsquemaAcceso(BaseModel):
     usuario: str
     contrasena: str
@@ -19,30 +18,23 @@ class EsquemaActualizacionUsuario(BaseModel):
     email: Optional[str] = None
     activo: Optional[bool] = None
 
-# CAMBIO: Usamos 'app' como nombre de la aplicación
 app = FastAPI()
 
-# Base de datos en memoria
 USUARIOS = [
     {"id": 1, "nombre": "admin", "contrasena": "abc", "email": "admin@cipherwall.com", "activo": True},
     {"id": 2, "nombre": "user1", "contrasena": "secret", "email": "user1@lab.com", "activo": True},
 ]
 siguiente_id = 3
 
-# Función auxiliar para encontrar usuario
 def encontrar_usuario(user_id: int):
     for u in USUARIOS:
         if u["id"] == user_id:
             return u
     return None
 
-# --- Endpoints Generales ---
-
 @app.get("/")
 def inicio():
     return {"mensaje": "Bienvenido al Laboratorio de Seguridad"}
-
-# --- Endpoints de Login (Para el ataque de fuerza bruta) ---
 
 @app.post("/login")
 def iniciar_sesion(peticion: EsquemaAcceso):
@@ -56,8 +48,6 @@ def iniciar_sesion(peticion: EsquemaAcceso):
             return {"message": f"login successful", "user": u["nombre"]} 
             
     raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-
-# --- Endpoints de Usuarios (CRUD) ---
 
 @app.post("/users")
 def crear_usuario(peticion: EsquemaCreacionUsuario):
@@ -80,7 +70,6 @@ def crear_usuario(peticion: EsquemaCreacionUsuario):
 
 @app.get("/users")
 def listar_usuarios():
-    # Devuelve solo datos sin la contraseña para simular un listado seguro
     lista_limpia = [{"id": u["id"], "nombre": u["nombre"], "email": u["email"], "activo": u["activo"]} for u in USUARIOS]
     return lista_limpia
 
@@ -90,7 +79,6 @@ def obtener_usuario(user_id: int):
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
         
-    # Devuelve solo datos sin la contraseña
     return {"id": usuario["id"], "nombre": usuario["nombre"], "email": usuario["email"], "activo": usuario["activo"]}
 
 @app.put("/users/{user_id}")
@@ -106,7 +94,6 @@ def actualizar_usuario(user_id: int, peticion: EsquemaActualizacionUsuario):
     if peticion.activo is not None:
         usuario["activo"] = peticion.activo
         
-    # Devuelve solo datos sin la contraseña
     return {"mensaje": "Usuario actualizado", "usuario": {"id": usuario["id"], "nombre": usuario["nombre"], "email": usuario["email"], "activo": usuario["activo"]}}
 
 @app.delete("/users/{user_id}")
@@ -122,5 +109,4 @@ def eliminar_usuario(user_id: int):
     return {"mensaje": f"Usuario {user_id} eliminado"}
 
 if __name__ == "__main__":
-    # CAMBIO: La cadena de ejecución ahora usa 'app'
     uvicorn.run("api_servidor:app", host="127.0.0.1", port=8000, reload=True)
